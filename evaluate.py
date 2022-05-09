@@ -7,10 +7,11 @@ from torch.utils.data import DataLoader
 
 from helmnet import IterativeSolver
 from helmnet.dataloaders import get_dataset
+from typing import Union
 
 
 class Evaluation:
-    def __init__(self, path, testset, gpus):
+    def __init__(self, path, testset, gpus : Union[None, list[int]]):
         self.path = path
         self.testset = get_dataset(testset)
         self.testloader = DataLoader(
@@ -103,14 +104,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--gpu",
         type=int,
-        default=1,
-        help="Which gpu to use",
+        nargs='+',
+        default=None,
+        help="Space delimited list of GPUs which should be used(i.e. --gpu 0 1 for GPUs 0 and 1). For CPU, do not specify this argument.",
     )
 
     args = parser.parse_args()
 
     evaluator = Evaluation(
-        path=args.model_checkpoint, testset=args.test_set, gpus=[args.gpu]
+        path=args.model_checkpoint, testset=args.test_set, gpus=args.gpu
     )
 
     # Making results on the test set
