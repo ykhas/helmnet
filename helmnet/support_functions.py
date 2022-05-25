@@ -426,15 +426,14 @@ def fig_generic(
 
     # Solve with gmres
     print("Solving with GMRES")
-    #"""
     command = [
         "matlab",
-        ''' -nodisplay -nosplash -nodesktop -r "run('matlab/solve_with_gmres.m'); exit;"''',
+        "-nodisplay", "-nosplash", "-nodesktop", "-nojvm", "-wait", "-r",
+        "run('matlab/solve_with_gmres.m'); exit;",
     ]
     subprocess.run(command, capture_output=True)
-    #"""
     
-    matfile = loadmat("/tmp/helmholtz.mat")#gmres_matfile# loadmat("/tmp/helmholtz.mat")
+    matfile = loadmat("/tmp/helmholtz.mat")
     gmres_solution = matfile["p"]
     gmres_error = matfile["rel_error"]
 
