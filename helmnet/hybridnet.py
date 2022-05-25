@@ -128,7 +128,7 @@ class IterativeSolver(pl.LightningModule):
         sigmay = sigmay.clone().detach()#.to(self.device) #torch.tensor(sigmay, device=self.device)
         sigmax = sigmax.unsqueeze(0)
         sigmay = sigmay.unsqueeze(0)
-        self.sigmas = torch.cat([sigmax, sigmay]).float()   # buffer will be moved together with the module
+        self.sigmas = torch.cat([sigmax, sigmay]).float().to(self.device)   # buffer will be moved together with the module
 
     def setup_source(self):
         self.source_module = SourceModule(

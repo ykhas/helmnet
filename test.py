@@ -33,5 +33,35 @@ def sample_prediction(use_cuda: bool = False):
         mode="normal",
     )
 
+def plot_neonate(use_cuda: bool = False):
+    solver = IterativeSolver.load_from_checkpoint(
+        checkpoint_path="checkpoints/trained_weights.ckpt", strict=False, test_data_path=None
+    )
+    solver.freeze()  # To evaluate the model without changing it
+
+    if use_cuda:
+        solver.to("cuda:0")
+
+    # Setup problem
+    source_location = [100,200]
+    sos_map = np.load("sos.npy")
+
+    # Set model domain size (assumed square)
+    solver.set_domain_size(sos_map.shape[-1], source_location=source_location)
+
+    # Run example in kWave and pytorch, and produce figure
+    fig_generic(
+        solver,
+        sos_map,
+        path="images/withgmres",
+        source_location=source_location,
+        omega=1,
+        min_sos=1,
+        cfl=0.1,
+        roundtrips=10.0,
+        mode="normal",
+    )
+
 if __name__ == "__main__":
-    sample_prediction()
+    sample_prediction(use_cuda=True)
+    # plot_neonate()

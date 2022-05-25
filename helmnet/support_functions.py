@@ -413,7 +413,8 @@ def fig_generic(
     print("Solving with kWave")
     command = [
         "matlab",
-        ''' -nodisplay -nosplash -nodesktop -nojvm -r "run('matlab/solve_with_kwave.m'); exit;"''',
+        "-nodisplay", "-nosplash", "-nodesktop", "-nojvm", "-wait", "-r",
+        "run('matlab/solve_with_kwave.m'); exit;"
     ]
     subprocess.run(command, capture_output=True)
     matfile = loadmat("/tmp/helmholtz.mat")
