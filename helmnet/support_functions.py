@@ -372,6 +372,34 @@ def make_skull_example(evaluator):
     )
 
 
+def plot_network(solver, sos_map):
+    print("Solving with Neural network")
+    sos_map_tensor = (
+        torch.tensor(sos_map).unsqueeze(0).unsqueeze(0).to(solver.device)
+    ).float()
+    with torch.no_grad():
+        output = solver.forward(
+            sos_map_tensor,
+            num_iterations=1000,
+            return_wavefields=True,
+            return_states=False,
+        )
+        pytorch_wavefield = torch.cat(
+            [x[:, 0] + 1j * x[:, 1] for x in output["wavefields"]]
+        )
+        pytorch_wavefield = normalize_wavefield(pytorch_wavefield[-1].cpu(), [30,128])
+        # ax = plt.subplot()
+        # z = pytorch_wavefield[-1].cpu()
+        # plt.plot(np.real(z))
+        # plt.show()
+
+        plt.imshow(np.real(pytorch_wavefield), vmin=-0.5, vmax=0.5, cmap="seismic")
+        plt.axis("off")
+        plt.show()
+        # plt.colorbar(raster3, ax=ax)
+        # plt.show()
+
+
 def fig_generic(
     solver,
     sos_map,
