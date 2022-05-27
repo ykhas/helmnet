@@ -35,7 +35,7 @@ def sample_prediction(use_cuda: bool = False):
         mode="normal",
     )
 
-def plot_neonate(use_cuda: bool = False):
+def plot_propagation(sos_map, source_location, use_cuda: bool = False):
     solver = IterativeSolver.load_from_checkpoint(
         checkpoint_path="checkpoints/trained_weights.ckpt", strict=False, test_data_path=None
     )
@@ -44,29 +44,8 @@ def plot_neonate(use_cuda: bool = False):
     if use_cuda:
         solver.to("cuda:0")
 
-    # Setup problem
-    source_location = [45,64]
-    sos_map = np.load("sos.npy")
-    sos_map = sos_map #/ np.max(sos_map[30])
-
-    # sos_map = np.ones((256, 256))
-    # sos_map[100:170, 30:240] = np.tile(np.linspace(2,1,210),(70,1))
-    # Set model domain size (assumed square)
     solver.set_domain_size(sos_map.shape[-1], source_location=source_location)
 
-    # Run example in kWave and pytorch, and produce figure
-    # fig_generic(
-    #     solver,
-    #     sos_map,
-    #     path="images/withgmres",
-    #     source_location=source_location,
-    #     omega=1,
-    #     min_sos=1,
-    #     cfl=0.1,
-    #     roundtrips=10.0,
-    #     mode="normal",
-    # )
-    # plot_network(solver, sos_map)
     fig_generic(
             solver,
             sos_map,
@@ -79,6 +58,15 @@ def plot_neonate(use_cuda: bool = False):
             mode="normal",
         )
 
+
+def plot_adult(source_location, use_cuda: bool = False):
+    sos_map = np.load("sos_adult.npy")
+    plot_propagation(sos_map, source_location, use_cuda)
+
+def plot_1_yo(source_location, use_cuda: bool = False):
+    sos_map = np.load("sos_2yo_dry.npy")
+    plot_propagation(sos_map, source_location, use_cuda)
+
 if __name__ == "__main__":
-    # sample_prediction(use_cuda=True)
-    plot_neonate(use_cuda=True)
+    source_location = [45,64]
+    plot_1_yo(source_location, use_cuda=True)
