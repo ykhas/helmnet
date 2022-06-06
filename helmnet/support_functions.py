@@ -491,8 +491,10 @@ def fig_generic(
 
         # get permuted view of the wavefields
         # final rank should be the real / complex one for view_as_complex to work
-        pytorch_wavefield_permuted = output["wavefields"].permute(0,2,3,1).contiguous()
-        pytorch_wavefield = torch.view_as_complex(pytorch_wavefield_permuted)
+        pytorch_wavefield_permuted = output["wavefields"].permute(0,1,3,4,2).contiguous()
+
+        # remove vacuous dimension from wavefield so that a comparison with model can be made.
+        pytorch_wavefield = torch.view_as_complex(pytorch_wavefield_permuted).squeeze(1)
         kwave_wavefield = torch.tensor(kwave_solution, device=pytorch_wavefield.device)
 
         kwave_field_norm = normalize_wavefield(
