@@ -669,7 +669,9 @@ class IterativeSolver(pl.LightningModule):
         residual = self.get_residual(wavefield, k_sq)
 
         # Initialize containers
-        wavefields = []
+        resulting_wavefields_size = list(wavefield.shape)
+        resulting_wavefields_size[0] = num_iterations
+        wavefields = torch.empty(resulting_wavefields_size)
         residuals = []
         states = []
 
@@ -681,13 +683,13 @@ class IterativeSolver(pl.LightningModule):
             #  Store
             residuals.append(residual)  # Last residual
             if return_wavefields:
-                wavefields.append(wavefield)
+                wavefields[current_iteration,:,:,:] = wavefield
             if return_states:
                 states.append(self.f.get_states(flatten=True))
 
         #  Add only last wavefield if none logged
         if not return_wavefields:
-            wavefields.append(wavefield)
+            wavefields[0,:,:,:] = wavefield
 
         return {
             "wavefields": wavefields,

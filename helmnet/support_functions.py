@@ -489,9 +489,10 @@ def fig_generic(
         # Find losses
         losses = [solver.test_loss_function(x) for x in output["residuals"]]
 
-        pytorch_wavefield = torch.cat(
-            [x[:, 0] + 1j * x[:, 1] for x in output["wavefields"]]
-        )
+        # get permuted view of the wavefields
+        # final rank should be the real / complex one for view_as_complex to work
+        pytorch_wavefield_permuted = output["wavefields"].permute(0,2,3,1).contiguous()
+        pytorch_wavefield = torch.view_as_complex(pytorch_wavefield_permuted)
         kwave_wavefield = torch.tensor(kwave_solution, device=pytorch_wavefield.device)
 
         kwave_field_norm = normalize_wavefield(
