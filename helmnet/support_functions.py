@@ -5,6 +5,7 @@ import os
 from matplotlib import pyplot as plt
 import subprocess
 from scipy.io import loadmat, savemat
+from evaluate import ChildEvaluation
 
 
 def last_frame_difference(stream, reference, mask=None):
@@ -305,8 +306,7 @@ def show_example_abs(
         axs[1, 1].set_yticks([0.0001, 0.001, 0.01, 0.1])
         axs[1, 1].set_ylim([0.00001, 0.01])
 
-
-def make_skull_example(evaluator):
+def make_kwave_skull_solution():
     print("----- Running kWave (output not shown)")
     command = [
         "matlab",
@@ -315,61 +315,77 @@ def make_skull_example(evaluator):
     subprocess.run(command, capture_output=True)
 
     print("----- Solving with model")
-    kwave_solution = loadmat("examples/kwavedata512.mat")["p_kw"]
+    return loadmat("examples/kwavedata512.mat")["p_kw"]
+
+def make_network_skull_solution(network_params_path, gpus):
     matlab_variables = loadmat("examples/problem_setup.mat")
     speedofsound = matlab_variables["sos"].astype(float)
     src_map = 10 * matlab_variables["src"].astype(float)
     sos_map = torch.tensor(speedofsound).unsqueeze(0).unsqueeze(0)
     source = torch.tensor(src_map).unsqueeze(0).float()
+    sos_map_tensor = torch.tensor(sos_map).float()
+
+    evaluator = ChildEvaluation(network_params_path, sos_map_tensor, gpus)
     evaluator.set_domain_size(sos_map.shape[-1], source_map=source)
-    sos_map_tensor = torch.tensor(sos_map).to("cuda:" + str(evaluator.gpus[0])).float()
+    evaluator.model.hparams["max_iterations"] = 3000
 
     with torch.no_grad():
-        output = evaluator.model.forward(
-            sos_map_tensor,
-            num_iterations=3000,
-            return_wavefields=True,
-            return_states=False,
+        output = evaluator.infer()
+    return output, evaluator
+
+def make_skull_example(network_params_path, gpus):
+    isNewGeneration = False
+    if not os.path.isfile("examples/kwavedata512.mat"):
+        print("Data for skull example not found, I'll generate it.")
+        kwave_solution = make_kwave_skull_solution()
+        isNewGeneration = True
+    else:
+        kwave_solution = loadmat("examples/kwavedata512.mat")["p_kw"]
+    if not os.path.isfile("examples/pytorch_results.mat"):
+        print("Data for neural network run is not found, I'll generate it.")
+        output, evaluator = make_network_skull_solution(network_params_path, gpus)
+        isNewGeneration = True
+    else:
+        output = loadmat("examples/pytorch_results.mat")
+    if isNewGeneration:
+        with torch.no_grad():
+            losses = [evaluator.model.test_loss_function(x) for x in output["residuals"]]
+
+            pytorch_wavefield = torch.cat(
+                [(x[:, 0] + 1j * x[:, 1]).detach().cpu() for x in output["wavefields"]]
+            ).cpu()
+            kwave_wavefield = torch.tensor(kwave_solution, device=pytorch_wavefield.device)
+
+            max_pt = torch.argmax(torch.abs(kwave_wavefield))
+            row, col = max_pt // 512, max_pt - (max_pt // 512) * 512
+
+            kwave_field_norm = normalize_wavefield(
+                torch.conj(kwave_wavefield), source_location=[row, col]
+            )
+            model_field_norm = normalize_wavefield(
+                pytorch_wavefield, source_location=[row, col]
+            )
+            difference = torch.abs(kwave_field_norm.unsqueeze(0) - model_field_norm)[
+                :, 15:-15, 15:-15
+            ]
+            l_infty, indices = difference.reshape(difference.shape[0], -1).topk(1, 1)
+
+        # Store some wavefields
+        iterations = np.rint(3000 ** np.linspace(0, 1, 16) - 1).tolist()
+        iterations = list(map(int, iterations))
+
+        samples = np.stack([model_field_norm[i].abs().cpu() for i in iterations])
+
+        savemat(
+            "examples/pytorch_results.mat",
+            {
+                "pytorch_wf": pytorch_wavefield[-1].cpu().numpy(),
+                "res": np.array(losses),
+                "l_infty": np.array(l_infty),
+                "samples": samples,
+                "iterations": iterations,
+            },
         )
-
-    with torch.no_grad():
-        losses = [evaluator.model.test_loss_function(x) for x in output["residuals"]]
-
-        pytorch_wavefield = torch.cat(
-            [(x[:, 0] + 1j * x[:, 1]).detach().cpu() for x in output["wavefields"]]
-        ).cpu()
-        kwave_wavefield = torch.tensor(kwave_solution, device=pytorch_wavefield.device)
-
-        max_pt = torch.argmax(torch.abs(kwave_wavefield))
-        row, col = max_pt // 512, max_pt - (max_pt // 512) * 512
-
-        kwave_field_norm = normalize_wavefield(
-            torch.conj(kwave_wavefield), source_location=[row, col]
-        )
-        model_field_norm = normalize_wavefield(
-            pytorch_wavefield, source_location=[row, col]
-        )
-        difference = torch.abs(kwave_field_norm.unsqueeze(0) - model_field_norm)[
-            :, 15:-15, 15:-15
-        ]
-        l_infty, indices = difference.reshape(difference.shape[0], -1).topk(1, 1)
-
-    # Store some wavefields
-    iterations = np.rint(3000 ** np.linspace(0, 1, 16) - 1).tolist()
-    iterations = list(map(int, iterations))
-
-    samples = np.stack([model_field_norm[i].abs().cpu() for i in iterations])
-
-    savemat(
-        "examples/pytorch_results.mat",
-        {
-            "pytorch_wf": pytorch_wavefield[-1].cpu().numpy(),
-            "res": np.array(losses),
-            "l_infty": np.array(l_infty),
-            "samples": samples,
-            "iterations": iterations,
-        },
-    )
 
 
 def plot_network(solver, sos_map):

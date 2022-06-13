@@ -3,7 +3,6 @@ from helmnet.support_functions import fig_generic, plot_network
 import numpy as np
 
 
-
 def sample_prediction(use_cuda: bool = False):
 
     solver = IterativeSolver.load_from_checkpoint(

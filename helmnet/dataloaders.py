@@ -22,7 +22,6 @@ def get_dataset(
     trainset = torch.load(dataset_path, map_location={source_location: destination})
     return trainset
 
-
 class EllipsesDataset(Dataset):
     """Dataset of oversimplified skulls."""
 

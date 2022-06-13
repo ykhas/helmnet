@@ -303,11 +303,8 @@ def fig_example(
         max_iter
     )
 
-
-def fig_skull_example(evaluator, path="images/skull_example"):
-    if not os.path.isfile("examples/kwavedata512.mat"):
-        print("Data for skull example not found, I'll generate it.")
-        make_skull_example(evaluator)
+def fig_skull_example(path="images/child_skull_example_2", gpus = None, network_params_path=SETTINGS["model_checkpoint"]):
+    make_skull_example(network_params_path, gpus)
 
     sos_map = loadmat("examples/problem_setup.mat")["sos"]
     kwave_wavefield = loadmat("examples/kwavedata512.mat")["p_kw"]
@@ -340,6 +337,13 @@ def fig_skull_example(evaluator, path="images/skull_example"):
             counter += 1
     plt.savefig(path + "_evolution.png")
 
+
+def plot_with_transducer():
+    plt.rcParams.update({
+        "text.usetex": True,
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Helvetica"]})
+    fig_skull_example(gpus=SETTINGS["gpu"])
 
 if __name__ == "__main__":
     plt.rcParams.update({

@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 
 import numpy as np
 import pytorch_lightning as pl
+import torch
 from scipy.io import savemat
 from torch.utils.data import DataLoader
 
@@ -25,6 +26,14 @@ class Evaluation:
     def move_model_to_gpu(self):
         self.model.to("cuda:" + str(self.gpus[0]))
 
+    def infer(self):
+        with torch.no_grad():
+            trainer = pl.Trainer(gpus=self.gpus)
+            output: list = trainer.predict(self.model, self.testloader)
+        if (len(output) == 1):
+            output = output[0]
+        return output
+
     def results_on_test_set(self):
         trainer = pl.Trainer(gpus=self.gpus)
         trainer.test(self.model, self.testloader)
@@ -34,7 +43,7 @@ class Evaluation:
         savemat("test_indices.mat", {"test_indices": np.array(self.testset.indices)})
 
     def single_example(self, idx, get_wavefield=True, get_states=True, iterations=1000):
-        sos_map = self.testset[idx].unsqueeze(0).to("cuda:" + str(self.gpus[0]))
+        sos_map = self.testset[idx].unsqueeze(0).to(self.model.device)
 
         output = self.model.forward(
             sos_map,
@@ -82,6 +91,18 @@ class Evaluation:
         self.model.f.init_by_size()
         for enc, size in zip(self.model.f.enc, self.model.f.states_dimension):
             enc.domain_size = size
+
+class ChildEvaluation(Evaluation):
+    def __init__(self, path, testset, gpus, domain_size=None, source_location=None):
+        self.path = path
+        self.testset = testset
+        self.testloader = DataLoader(
+            testset, batch_size=1, num_workers=1, shuffle=False
+        )
+        self.gpus = gpus
+        self.model = self.get_model(domain_size, source_location)
+        self.model.eval()
+        self.model.freeze()
 
 
 if __name__ == "__main__":

@@ -310,6 +310,15 @@ class IterativeSolver(pl.LightningModule):
             "wavefields": [x for x in output["wavefields"]],      
         }
 
+    def predict_step(self, batch, batch_idx):
+        output = self.forward(
+            batch,
+            num_iterations=self.hparams.max_iterations,
+            return_wavefields=True,
+            return_states=False,
+        )
+        return output
+
     def test_epoch_end(self, outputs):
         # Saving average losses
         print("Saving residual RMSE")
@@ -667,8 +676,8 @@ class IterativeSolver(pl.LightningModule):
 
         # Initialize containers
         resulting_wavefields_size = [num_iterations, *wavefield.shape]
-        wavefields = torch.empty(resulting_wavefields_size)
-        residuals = []
+        wavefields = torch.zeros(resulting_wavefields_size)
+        residuals = torch.zeros(resulting_wavefields_size)
         states = []
 
         # Unroll N steps
@@ -677,7 +686,7 @@ class IterativeSolver(pl.LightningModule):
             wavefield, residual = self.single_step(wavefield, k_sq, residual)
 
             #  Store
-            residuals.append(residual)  # Last residual
+            residuals[current_iteration,:,:,:,:] = residual
             if return_wavefields:
                 wavefields[current_iteration,:,:,:,:] = wavefield
             if return_states:
